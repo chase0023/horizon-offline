@@ -114,7 +114,7 @@ mod tests {
         use crate::backend::LAUNCHER_REPO;
         assert_eq!(
             asset_url_in(LAUNCHER_REPO, "launcher@0.2.90", "horizon-launcher-windows-x64.zip"),
-            "https://github.com/chase0023/horizon-offline/releases/download/launcher%400.2.90/horizon-launcher-windows-x64.zip"
+            "https://github.com/chase0023/horizon-offline/releases/download/launcher@0.2.90/horizon-launcher-windows-x64.zip"
         );
         assert!(!horizon_release_sign::trusted_keys_for(LAUNCHER_REPO).is_empty());
     }

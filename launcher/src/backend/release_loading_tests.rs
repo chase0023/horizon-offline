@@ -165,7 +165,9 @@ fn empty_or_prebuilt_only_fork_has_no_game_or_launcher_update() {
                 |list| {
                     launcher_releases_in_with(list, |url| {
                         assert!(
-                            url.starts_with("https://api.github.com/repos/horizon-rust/horizon/")
+                            url.starts_with(
+                                "https://api.github.com/repos/chase0023/horizon-offline/"
+                            )
                         );
                         Ok(missing.clone())
                     })

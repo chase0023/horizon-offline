@@ -58,7 +58,8 @@ session, so an offline profile cannot reach authenticated Xbox or Minecraft serv
 - Offline profiles do not appear in the Minecraft services, have no skin/cape profile, and
   cannot use Microsoft account features (Wardrobe cosmetics, Realms, friend invites, chat
   signing on secure-chat servers).
-- The launcher updates itself only from this fork's own releases (`chase0023/horizon-offline`).
+- The launcher updates itself only from this fork's own releases
+  (<https://github.com/chase0023/horizon-offline/releases>).
   It never installs an official Horizon launcher, which would not know offline profiles. Game and
   Nightly updates still come from upstream. Every launcher update is checked against a signed
   SHA-256 manifest before it is installed.

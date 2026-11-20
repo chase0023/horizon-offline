@@ -1,8 +1,8 @@
 # Horizon with offline accounts
 
 A modified build of the [Horizon launcher](https://github.com/horizon-rust/horizon) (Rust,
-LGPL-3.0-or-later) that adds **first-class local offline profiles** next to the existing
-Microsoft sign-in. An offline profile is a real launch path, not a hidden button: choosing one
+LGPL-3.0-or-later), based on launcher **0.2.90**, that adds **first-class local offline profiles**
+next to the existing Microsoft sign-in. An offline profile is a real launch path, not a hidden button: choosing one
 starts the installed game with that player's name, and the game derives the normal Minecraft
 offline UUID from it.
 
@@ -31,7 +31,11 @@ token, never write a session file, and never bypass Xbox or Minecraft authentica
    (or sign in with Microsoft).
 3. Press **Play**.
 
-The compiled build is `dist/horizon-launcher.exe` (release, x86-64 Windows).
+The compiled build is `dist/horizon-launcher.exe` (0.2.90, release, x86-64 Windows).
+
+**Update feed:** <https://github.com/chase0023/horizon-offline/releases>  
+Launcher updates come only from that feed and are checked against a signed `SHA256SUMS` manifest.
+Horizon Nightly and game builds still come from `horizon-rust/horizon`.
 
 The launcher self-updates from this fork's own GitHub releases, never from Horizon's official
 launcher releases. Game and Nightly updates still come from upstream. This keeps offline profiles
@@ -119,6 +123,8 @@ Requires Rust stable (MSVC toolchain) and the Visual Studio C++ build tools.
 
 ```powershell
 cd launcher
+$env:HORIZON_LAUNCHER_VERSION = "0.2.90"
+$env:HORIZON_LAUNCHER_TAG = "launcher@0.2.90"
 cargo build --release
 .\target\release\horizon-launcher.exe
 ```
@@ -127,6 +133,10 @@ The launcher is its own Cargo workspace inside this repository; build it from `l
 from the repository root. The full game can be built from the root with the workspace’s normal
 Horizon instructions, but the launcher only needs the prebuilt/prepared game versions already
 in its data folder (or a Minecraft install to prepare from).
+
+The release workflow in `tools/ci/offline-launcher.yml` builds and signs a new release. Publishing
+from GitHub Actions needs a token with the `workflow` scope; the source repository currently keeps
+the workflow there so it can be enabled later without changing the launcher.
 
 To put your own Microsoft application ID into the binary:
 

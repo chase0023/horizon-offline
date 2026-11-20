@@ -110,6 +110,16 @@ mod tests {
     }
 
     #[test]
+    fn fork_launcher_assets_and_keys_stay_on_the_fork() {
+        use crate::backend::LAUNCHER_REPO;
+        assert_eq!(
+            asset_url_in(LAUNCHER_REPO, "launcher@0.2.90", "horizon-launcher-windows-x64.zip"),
+            "https://github.com/chase0023/horizon-offline/releases/download/launcher%400.2.90/horizon-launcher-windows-x64.zip"
+        );
+        assert!(!horizon_release_sign::trusted_keys_for(LAUNCHER_REPO).is_empty());
+    }
+
+    #[test]
     fn upstream_retains_its_release_key() {
         // With no key in release-keys.txt every release after the pinned ones would be refused:
         // this fails until the release environment's public key is listed (docs/security.md).

@@ -1,0 +1,148 @@
+//! Who plays: the top bar's quick switch (a menu under the account chip) between the signed-in
+//! Microsoft accounts.
+use super::*;
+
+impl Launcher {
+    /// Whether the active player is a local offline profile.
+    pub(super) fn playing_offline(&self) -> bool {
+        // Resolve the saved UUID, not just the field: a hand-edited accounts.json can point at
+        // a profile that is gone, and then a Microsoft account plays.
+        self.accounts.selected_offline().is_some()
+    }
+
+    /// What Play needs of an account: an offline profile needs no owner; a Microsoft account
+    /// needs one that owns the game (the owner gate).
+    pub(super) fn play_owner(&self) -> Option<bool> {
+        if self.playing_offline() {
+            Some(true)
+        } else {
+            self.owner
+        }
+    }
+
+    /// The chip's two lines: the name that plays, and how.
+    pub(super) fn who_plays(&self) -> (String, &'static str) {
+        match self.accounts.active() {
+            Some(account) if account.is_offline() => {
+                (account.name().to_owned(), tr("Offline account"))
+            }
+            Some(account) => (account.name().to_owned(), tr("Microsoft account")),
+            None => (String::new(), tr("Sign in with Microsoft")),
+        }
+    }
+
+    pub(super) fn play_as(&mut self, who: &str) {
+        let mut accounts = Accounts::load();
+        let done = accounts.select(who).and_then(|()| accounts.save());
+        match done {
+            Ok(()) => {
+                self.accounts = accounts;
+                // Switching to a profile (or to a signed-in account) closes the gate: a player
+                // is chosen now.
+                self.owner_screen_open = false;
+                if !self.settings.owner_notice_seen
+                    || self.settings.account_choice_seen != Some(true)
+                {
+                    self.settings.owner_notice_seen = true;
+                    self.settings.account_choice_seen = Some(true);
+                    self.save_settings();
+                }
+            }
+            Err(e) => self.sign_in_state = Some(SignInState::Done(Err(e))),
+        }
+        self.account_menu = false;
+    }
+
+    /// Everyone the player can play as (each account's UUID and name), with how each plays.
+    pub(super) fn players(&self) -> Vec<(String, String, &'static str)> {
+        self.accounts
+            .accounts
+            .iter()
+            .map(|a| (a.uuid.clone(), a.name.clone(), tr("Microsoft")))
+            .chain(self.accounts.offline_profiles.iter().map(|p| {
+                (p.uuid.clone(), p.name.clone(), tr("Offline"))
+            }))
+            .collect()
+    }
+
+    /// The menu under the account chip, while open.
+    pub(super) fn account_menu(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+        if !self.account_menu {
+            return None;
+        }
+        let t = self.theme;
+        let now = self.accounts.active().map(|a| a.uuid().to_owned());
+        let mut menu = div()
+            .id("account-menu")
+            .absolute()
+            .top(px(46.))
+            .right_0()
+            .w(px(280.))
+            .p(px(6.))
+            .border_2()
+            .border_color(t.outline)
+            .bg(t.surface)
+            .flex()
+            .flex_col()
+            .occlude()
+            .on_mouse_down_out(cx.listener(|this, event: &MouseDownEvent, _, cx| {
+                this.account_menu = false;
+                this.menu_closed_at = Some(event.position);
+                cx.notify();
+            }));
+        for (i, (who, name, how)) in self.players().into_iter().enumerate() {
+            let chosen = Some(&who) == now.as_ref();
+            menu = menu.child(
+                div()
+                    .id(SharedString::from(format!("account-pick-{i}")))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(8.))
+                    .h(px(46.))
+                    .px(px(10.))
+                    .rounded(px(theme::RADIUS))
+                    .cursor_pointer()
+                    .hover(move |s| s.bg(t.plate_soft))
+                    .child(
+                        self.profile_heads
+                            .draw(Some(who.as_str()), 24., self.scale, &t),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .flex_1()
+                            .min_w_0()
+                            .child(text(theme::LABEL).truncate().text_color(t.ink).child(name))
+                            .child(text(theme::CAPTION).text_color(t.muted).child(how)),
+                    )
+                    .when(chosen, |d| d.child(div().size(px(6.)).bg(t.accent)))
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.play_as(&who);
+                        cx.notify();
+                    })),
+            );
+        }
+        menu = menu.child(div().my(px(6.)).h(px(1.)).bg(t.rule)).child(
+            div()
+                .id("account-manage")
+                .flex()
+                .items_center()
+                .h(px(32.))
+                .px(px(10.))
+                .rounded(px(theme::RADIUS))
+                .text_size(px(theme::LABEL.px))
+                .text_color(t.muted)
+                .cursor_pointer()
+                .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
+                .child(tr("Manage accounts"))
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.account_menu = false;
+                    this.go(Page::Settings);
+                    cx.notify();
+                })),
+        );
+        Some(gpui::deferred(menu).with_priority(1))
+    }
+}

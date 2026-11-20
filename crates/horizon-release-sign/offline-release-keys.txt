@@ -1,0 +1,4 @@
+# Public Ed25519 keys for chase0023/horizon-offline launcher releases. The private key is kept
+# outside the repository and in the release environment's secret; this fork never trusts an
+# unsigned or upstream launcher asset.
+tjXf9+uZ//yPU7wJZggke4XbyyPuDpzPyr7ZEWm/qHs=

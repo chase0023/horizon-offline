@@ -1,0 +1,75 @@
+name: offline-launcher
+
+# Builds and publishes this fork's launcher. Game and Nightly builds stay on upstream; only the
+# launcher binary comes from here, so an official launcher can never replace offline profiles.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Launcher version (without the launcher@ prefix)
+        required: true
+        default: '0.2.90'
+      dry_run:
+        description: Build and sign, but publish nothing
+        type: boolean
+        default: true
+permissions:
+  contents: write
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+      TAG: launcher@${{ inputs.version || github.ref_name }}
+      HORIZON_LAUNCHER_VERSION: ${{ inputs.version || github.ref_name }}
+      HORIZON_LAUNCHER_TAG: launcher@${{ inputs.version || github.ref_name }}
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher -> target
+
+      - name: Build the launcher
+        working-directory: launcher
+        run: cargo build --release --locked
+
+      - name: Package the Windows launcher
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:GITHUB_WORKSPACE 'release'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'launcher\target\release\horizon-launcher.exe') (Join-Path $out 'horizon-launcher.exe')
+          Compress-Archive -Path (Join-Path $out 'horizon-launcher.exe') -DestinationPath (Join-Path $out 'horizon-launcher-windows-x64.zip') -Force
+
+      - name: Sign SHA256SUMS
+        shell: bash
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
+            echo "RELEASE_SIGNING_KEY is not set" >&2
+            exit 1
+          fi
+          tools/ci/sign_release.sh "$TAG" release/horizon-launcher-windows-x64.zip
+
+      - name: Publish the release
+        if: ${{ inputs.dry_run == false }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          assets=(release/horizon-launcher-windows-x64.zip release/SHA256SUMS release/SHA256SUMS.sig)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG" "${assets[@]}" \
+              --title "Horizon Offline $VERSION" \
+              --notes "Offline profiles, Microsoft sign-in, and updates from this fork. Game and Nightly builds still come from upstream Horizon."
+          fi
